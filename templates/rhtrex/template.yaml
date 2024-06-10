@@ -1,0 +1,77 @@
+---
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: rhtrex
+  title: Create an app based off of rhtrex
+  description: Create an app based off of rhtrex
+spec:
+  owner: backstage/techdocs-core
+  type: service
+
+  parameters:
+  - title: Enter App Name
+    required:
+    - serviceName
+    properties:
+      serviceName:
+        title: Service name
+        type: string
+        description: Must match the name of the repository
+        ui:autofocus: true
+        ui:options:
+          rows: 5
+
+  - title: Describe Your App
+    required:
+    - description
+    properties:
+      description:
+        title: Enter description
+        type: string
+        description: A one sentence summary of your application
+        ui:autofocus: true
+        ui:options:
+          rows: 5
+
+  - title: Enter the name of the team responsible for the App
+    required:
+    - serviceOwner
+    properties:
+      serviceOwner:
+        title: Enter owning team's name
+        type: string
+        description: Team name for the app
+        ui:autofocus: true
+        ui:options:
+          rows: 5
+
+  steps:
+  - id: fetch-template
+    name: Fetch Template
+    action: fetch:template
+    input:
+      url: ./skeleton
+      values:
+        serviceName: ${{ parameters.serviceName }}
+        description: ${{ parameters.description }}
+        serviceOwner: ${{ parameters.serviceOwner }}
+      targetPath: ${{ TODO }}
+
+  # EXAMPLE STEP
+  # - id: open-MR
+  #   name: Open User creation MR
+  #   action: publish:gitlab:merge-request
+  #   input:
+  #     repoUrl: gitlab.cee.redhat.com?repo=app-interface&owner=bholifie
+  #     sourcePath: app-interface
+  #     branchName: ${{ parameters.serviceName }}-stage-test-init
+  #     targetBranchName: master
+  #     title: (No Merge) Publish ${{ parameters.serviceName }} to Stage
+  #     description: (No merge) Create stage file entries for  ${{ parameters.serviceName }}
+
+  output:
+    links:
+    - title: Go to New MR
+      url: ${{ steps['open-MR'].output.remoteUrl }} #If we had an MR it would look like this - this is more app-interface esque! 
+
