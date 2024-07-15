@@ -3,75 +3,74 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: rhtrex
-  title: Create an app based off of rhtrex
+  title: Create an Application based off of rhtrex
   description: Create an app based off of rhtrex
 spec:
-  owner: backstage/techdocs-core
+  owner: backstage/techdocs-core #CHANGE?
   type: service
 
   parameters:
-  - title: Enter App Name
+  - title: Enter Application Name
     required:
-    - serviceName
+    - appName
     properties:
-      serviceName:
-        title: Service name
+      appName:
+        title: App Name
         type: string
         description: Must match the name of the repository
         ui:autofocus: true
         ui:options:
-          rows: 5
-
-  - title: Describe Your App
+          rows: 5  
+  - title: Enter the name of the org responsible for the App
     required:
-    - description
+    - orgName
     properties:
-      description:
-        title: Enter description
+      orgName:
+        title: Org Name
         type: string
-        description: A one sentence summary of your application
+        description: Org name for the app
         ui:autofocus: true
         ui:options:
           rows: 5
-
-  - title: Enter the name of the team responsible for the App
+  - title: Choose a location
     required:
-    - serviceOwner
+    - repoLoc
     properties:
-      serviceOwner:
-        title: Enter owning team's name
+      repoLoc:
+        title: Repository Location
         type: string
-        description: Team name for the app
-        ui:autofocus: true
+        ui:field: RepoUrlPicker
         ui:options:
-          rows: 5
+          allowedHosts: #check on allowed hosts
+            - github.com
+            - gitlabs.com
 
   steps:
-  - id: fetch-template
-    name: Fetch Template
-    action: fetch:template
-    input:
-      url: ./skeleton
-      values:
-        serviceName: ${{ parameters.serviceName }}
-        description: ${{ parameters.description }}
-        serviceOwner: ${{ parameters.serviceOwner }}
-      targetPath: ${{ TODO }}
+    - id: fetch-base
+      name: Fetch Base
+      action: fetch:template
+      input:
+        url: ./template
+        values:
+          appName: ${{ parameters.appName }}
+          orgName: ${{ parameters.orgName }}
+          repoLoc: ${{ parameters.repoLoc }}
 
-  # EXAMPLE STEP
-  # - id: open-MR
-  #   name: Open User creation MR
-  #   action: publish:gitlab:merge-request
-  #   input:
-  #     repoUrl: gitlab.cee.redhat.com?repo=app-interface&owner=bholifie
-  #     sourcePath: app-interface
-  #     branchName: ${{ parameters.serviceName }}-stage-test-init
-  #     targetBranchName: master
-  #     title: (No Merge) Publish ${{ parameters.serviceName }} to Stage
-  #     description: (No merge) Create stage file entries for  ${{ parameters.serviceName }}
-
-  output:
-    links:
-    - title: Go to New MR
-      url: ${{ steps['open-MR'].output.remoteUrl }} #If we had an MR it would look like this - this is more app-interface esque! 
+    #CREATE REPO 
+    #below steps need conditionals added to them based on github v gitlabs      
+    - id: create-gh-repo
+      name: Create Github Repo
+      action: github:repo:create
+      input:
+        repoUrl: ${{ parameters.repoLoc }} #this is the only req field
+        description: Test description #string
+        # access: #Sets an admin collaborator on the repository. Can either be a user reference different from 'owner' in 'repoUrl' or team reference, eg. 'org/team-name'
+        # requireCodeOwnerReviews: # Require an approved review in PR including files with a designated Code Owner; bool
+        # token: # Authentication Token: the token to use for authorization to GitHub
+        # requiredCommitSigning: #bool
+    - id: log-message
+      name: Log Message
+      action: debug:log
+      input:
+        message: 'RemoteURL: ${{ steps["create-gh-repo"].output.remoteUrl }}, ${{ steps["publish-repository"].output.repoContentsUrl }}!'
 
