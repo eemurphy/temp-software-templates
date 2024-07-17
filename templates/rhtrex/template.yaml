@@ -20,7 +20,7 @@ spec:
         description: Must match the name of the repository
         ui:autofocus: true
         ui:options:
-          rows: 5  
+          rows: 5       
   - title: Enter the name of the org responsible for the App
     required:
     - orgName
@@ -32,14 +32,14 @@ spec:
         ui:autofocus: true
         ui:options:
           rows: 5
-  - title: Enter the Org token
+  - title: Enter the token
     required:
     - token
     properties:
       token:
-        title: Token
+        title: token
         type: string
-        description: Org name for the app
+        description: token
         ui:autofocus: true
         ui:options:
           rows: 5
@@ -55,6 +55,18 @@ spec:
           allowedHosts: #check on allowed hosts
             - github.com
             - gitlabs.com
+      
+  # - title: Describe Your App
+  #   required:
+  #   - description
+  #   properties:
+  #     description:
+  #       title: Enter description
+  #       type: string
+  #       description: A one sentence summary of your application
+  #       ui:autofocus: true
+  #       ui:options:
+  #         rows: 5
 
   steps:
     - id: fetch-base
@@ -73,8 +85,8 @@ spec:
       name: Create Github Repo
       action: github:repo:create
       input:
-        repoUrl: ${{ parameters.repoLoc }} #this is the only req field
-        description: Test description #string
+        repoUrl: 'github.com?repo=${{ parameters.appName }}&owner=${{ parameters.orgName }}' #this is the only req field
+        # description: #string
         # access: #Sets an admin collaborator on the repository. Can either be a user reference different from 'owner' in 'repoUrl' or team reference, eg. 'org/team-name'
         # requireCodeOwnerReviews: # Require an approved review in PR including files with a designated Code Owner; bool
         token: ${{ parameters.token }} # Authentication Token: the token to use for authorization to GitHub
@@ -84,4 +96,41 @@ spec:
       action: debug:log
       input:
         message: 'RemoteURL: ${{ steps["create-gh-repo"].output.remoteUrl }}, ${{ steps["publish-repository"].output.repoContentsUrl }}!'
+    
+    #EDIT APP FROM RHTREX, AND COMMIT
+
+    - id: fetch-plain
+      name: Fetch rhtrex Template
+      action: fetch:plain
+      input:
+        url: 'https://github.com/openshift-online/rh-trex.git'
+        targetPath: '${{ parameters.appName }}_template'
+        branch: 'main'
+
+    - id: replace-app-gh
+      name: Rename app - Github
+      action: execute:shellCommand
+      input:
+        shellCommand: |
+          find ${{ parameters.appName }}_template -type f -not -name "README.md" -exec perl -pi -e 's|https://github\.com/openshift-online/rh-trex|${{ steps["create-gh-repo"].output.remoteUrl }}|g' {} +
+          mv ${{ parameters.appName }}_template/rh-trex/.tekton/rh-trex-pull-request.yaml ./rh-trex/.tekton/${{ parameters.appName }}-pull-request.yaml
+          mv ${{ parameters.appName }}_template/rh-trex/.tekton/rh-trex-push.yaml ./rh-trex/.tekton/${{ parameters.appName }}-push.yaml
+          find ${{ parameters.appName }}_template -type f -not -name "README.md" -not -path "*/.git/*" -exec perl -pi -e 's|rh-trex|${{ parameters.appName }}|g' {} +
+          sanitized_name=$(echo "${{ parameters.appName }}" | tr -cd '[:alnum:]_')
+          find ${{ parameters.appName }}_template -type f -not -name "README.md" -not -path "*/.git/*" -exec perl -pi -e 's|rhtrex|'"$sanitized_name"'|ig' {} +
+          find ${{ parameters.appName }}_template -type f -not -name "README.md" -not -path "*/.git/*" -exec perl -pi -e 's|  |'"${{ parameters.appName }}-service"'|ig' {} +
+
+          # Replacing the old directory names with the app-names 
+          mv ${{ parameters.appName }}_template/rh-trex/cmd/trex ${{ parameters.appName }}_template/rh-trex/cmd/${{ parameters.appName }}
+          mv ${{ parameters.appName }}_template/rh-trex ${{ parameters.appName }}_template/${{ parameters.appName }}
+
+    - id: push-gh-repo
+      name: Push to Github Repository
+      action: publish:github
+      input:
+        allowedHosts: ${{ parameters.repoLoc.ui.options.allowedHosts }}
+        repoUrl: 'github.com?repo=${{ parameters.appName }}&owner=${{ parameters.orgName }}'
+        branch: main
+        targetPath: '${{ parameters.appName }}_template'
+
 
