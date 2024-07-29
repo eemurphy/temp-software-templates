@@ -2,52 +2,41 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: rhtrex
-  title: Create an Application based off of rhtrex
-  description: Create an app based off of rhtrex
+  name: rh-trex-app
+  title: Create A New Application
+  description: Create a New Application based on Red Hat's Example Application RH-Trex
 spec:
-  owner: backstage/techdocs-core #CHANGE?
+  owner: backstage/techdocs-core #change to what?
   type: service
 
   parameters:
-  - title: Enter Application Name
+  - title: Application Name
     required:
     - appName
     properties:
       appName:
-        title: App Name
+        title: Enter New Application Name
         type: string
-        description: Must match the name of the repository
+        description: Enter the name you would like to be used for your application. Do not include any special characters (underscores and dashes are allowed)
         ui:autofocus: true
         ui:options:
           rows: 5       
-  - title: Enter the name of the org responsible for the App
+  - title: Organiztion Name
     required:
     - orgName
     properties:
       orgName:
-        title: Org Name
+        title: Enter Organization or User's Name
         type: string
-        description: Org name for the app
+        description: Enter the name of the organization or user responsible for the new repository
         ui:autofocus: true
         ui:options:
-          rows: 5
-  - title: Enter the token
-    required:
-    - token
-    properties:
-      token:
-        title: token
-        type: string
-        description: token
-        ui:autofocus: true
-        ui:options:
-          rows: 5
+          rows: 5  
   - title: Choose a location
     required:
-    - repoLoc
+    - repoUrl
     properties:
-      repoLoc:
+      repoUrl:
         title: Repository Location
         type: string
         ui:field: RepoUrlPicker
@@ -55,6 +44,18 @@ spec:
           allowedHosts: #check on allowed hosts
             - github.com
             - gitlabs.com
+  - title: Token
+    required:
+    - token
+    properties:
+      repoUrl:
+        title: TEMP - NEED TO REPLACE
+        type: string
+        description: TOKEN -- INSECURE
+        ui:autofocus: true
+        ui:options:
+          rows: 5            
+
       
   # - title: Describe Your App
   #   required:
@@ -77,28 +78,54 @@ spec:
         values:
           appName: ${{ parameters.appName }}
           orgName: ${{ parameters.orgName }}
-          repoLoc: ${{ parameters.repoLoc }}
+          repoLoc: ${{ parameters.repoUrl }}
+          token: ${{ parameters.token }}
 
-    #CREATE REPO 
-    #below steps need conditionals added to them based on github v gitlabs      
+    #Fetch Token: Expiremental step where we fetch the token/credentials/whatever needed to 
+    #             create a token or give auth access for github/gitlabs repo creation and PR/MRs
+    #- id: fetch-token
+    #  name: Fetch Token
+    #  action: fetch:template
+    #  input:
+    #    url: ./template
+    #    values: ${{parameters.orgName}}  
+
+    #Create Repository: Based on if conditions, create repository in correct organizational group
     - id: create-gh-repo
+      if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'github.com' }}
       name: Create Github Repo
       action: github:repo:create
       input:
-        repoUrl: 'github.com?repo=${{ parameters.appName }}&owner=${{ parameters.orgName }}' #this is the only req field
+        repoUrl: ${{ parameters.repoUrl }} #this is the only req field
         # description: #string
         # access: #Sets an admin collaborator on the repository. Can either be a user reference different from 'owner' in 'repoUrl' or team reference, eg. 'org/team-name'
         # requireCodeOwnerReviews: # Require an approved review in PR including files with a designated Code Owner; bool
-        token: ${{ parameters.token }} # Authentication Token: the token to use for authorization to GitHub
+        token:  ${{ parameters.token }} # Authentication Token: the token to use for authorization to GitHub
         # requiredCommitSigning: #bool
+    #- id: check-gl-group #do we need this?
+    #  if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'gitlab.com' }}
+    #  name: Ensure Gitlabs Group exists
+    #  action: gitlab:group:ensureExists
+    #  input: 
+    #    repoUrl: ${{ parameters.repoUrl }}
+        # path: # A path of group names that is ensured to exist ??
+    - id: create-gl-repo
+      if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'gitlab.com' }}
+      name: Create Gitlabs Repo
+      action: publish:gitlab
+      input:
+        repoUrl: ${{ parameters.repoUrl }} #this is the only req field
+        token:  ${{ parameters.token }} # Authentication Token: the token to use for authorization to GitLab
+        # setUserAsOwner: #Set the token user as owner of the newly created repository. Requires a token authorized to do the edit in the integration configuration for the matching host
+        # settings:	# Additional project settings, based on https://docs.gitlab.com/ee/api/projects.html#create-project attributes
+        # projectVariables: # Project variables settings based on Gitlab Project Environments API - https://docs.gitlab.com/ee/api/project_level_variables.html#create-a-variable
     - id: log-message
       name: Log Message
       action: debug:log
       input:
-        message: 'RemoteURL: ${{ steps["create-gh-repo"].output.remoteUrl }}, ${{ steps["publish-repository"].output.repoContentsUrl }}!'
-    
-    #EDIT APP FROM RHTREX, AND COMMIT
+        message: 'RemoteURL: ${{ parameters.repoUrl }} !!'
 
+    #EDIT APP FROM RHTREX, AND COMMIT
     - id: fetch-plain
       name: Fetch rhtrex Template
       action: fetch:plain
@@ -107,24 +134,8 @@ spec:
         targetPath: '${{ parameters.appName }}_template'
         branch: 'main'
 
-    - id: replace-app-gh
-      name: Rename app - Github
-      action: execute:shellCommand
-      input:
-        shellCommand: |
-          find ${{ parameters.appName }}_template -type f -not -name "README.md" -exec perl -pi -e 's|https://github\.com/openshift-online/rh-trex|${{ steps["create-gh-repo"].output.remoteUrl }}|g' {} +
-          mv ${{ parameters.appName }}_template/rh-trex/.tekton/rh-trex-pull-request.yaml ./rh-trex/.tekton/${{ parameters.appName }}-pull-request.yaml
-          mv ${{ parameters.appName }}_template/rh-trex/.tekton/rh-trex-push.yaml ./rh-trex/.tekton/${{ parameters.appName }}-push.yaml
-          find ${{ parameters.appName }}_template -type f -not -name "README.md" -not -path "*/.git/*" -exec perl -pi -e 's|rh-trex|${{ parameters.appName }}|g' {} +
-          sanitized_name=$(echo "${{ parameters.appName }}" | tr -cd '[:alnum:]_')
-          find ${{ parameters.appName }}_template -type f -not -name "README.md" -not -path "*/.git/*" -exec perl -pi -e 's|rhtrex|'"$sanitized_name"'|ig' {} +
-          find ${{ parameters.appName }}_template -type f -not -name "README.md" -not -path "*/.git/*" -exec perl -pi -e 's|  |'"${{ parameters.appName }}-service"'|ig' {} +
-
-          # Replacing the old directory names with the app-names 
-          mv ${{ parameters.appName }}_template/rh-trex/cmd/trex ${{ parameters.appName }}_template/rh-trex/cmd/${{ parameters.appName }}
-          mv ${{ parameters.appName }}_template/rh-trex ${{ parameters.appName }}_template/${{ parameters.appName }}
-
     - id: push-gh-repo
+      if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'github.com' }}
       name: Push to Github Repository
       action: publish:github
       input:
@@ -133,4 +144,17 @@ spec:
         branch: main
         targetPath: '${{ parameters.appName }}_template'
 
+    - id: push-gl-repo
+      if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'gitlab.com' }}
+      name: Push to Gitlab Repository
+      action: publish:gitlab
+      input:
+        allowedHosts: ${{ parameters.repoLoc.ui.options.allowedHosts }}
+        repoUrl: 'gitlab.com?repo=${{ parameters.appName }}&owner=${{ parameters.orgName }}'
+        branch: main
+        targetPath: '${{ parameters.appName }}_template'
 
+output:
+  - name: Repository URL
+    description: The URL of the newly created repository
+    value: ${{ parameters.repoUrl }}
