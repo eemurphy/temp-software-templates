@@ -48,7 +48,7 @@ spec:
     required:
     - token
     properties:
-      repoUrl:
+      token:
         title: TEMP - NEED TO REPLACE
         type: string
         description: TOKEN -- INSECURE
