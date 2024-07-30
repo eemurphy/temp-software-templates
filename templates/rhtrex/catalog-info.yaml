@@ -1,9 +1,9 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: temp-software-templates
+  name: rhtrex
   annotations:
-    github.com/project-slug: eemurphy/temp-software-templates
+    github.com/project-slug: eemurphy/temp-software-templates/templates/rhtrex
 spec:
   type: other
   lifecycle: unknown
