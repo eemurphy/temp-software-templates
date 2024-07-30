@@ -43,18 +43,7 @@ spec:
         ui:options:
           allowedHosts: #check on allowed hosts
             - github.com
-            - gitlabs.com
-  - title: Token
-    required:
-    - token
-    properties:
-      token:
-        title: TEMP - NEED TO REPLACE
-        type: string
-        description: TOKEN -- INSECURE
-        ui:autofocus: true
-        ui:options:
-          rows: 5            
+            - gitlabs.com      
 
       
   # - title: Describe Your App
@@ -81,15 +70,6 @@ spec:
           repoLoc: ${{ parameters.repoUrl }}
           token: ${{ parameters.token }}
 
-    #Fetch Token: Expiremental step where we fetch the token/credentials/whatever needed to 
-    #             create a token or give auth access for github/gitlabs repo creation and PR/MRs
-    #- id: fetch-token
-    #  name: Fetch Token
-    #  action: fetch:template
-    #  input:
-    #    url: ./template
-    #    values: ${{parameters.orgName}}  
-
     #EDIT APP FROM RHTREX, AND COMMIT
     - id: fetch-plain
       name: Fetch rhtrex Template
@@ -107,7 +87,7 @@ spec:
         allowedHosts: ${{ parameters.repoLoc.ui.options.allowedHosts }}
         repoUrl: 'github.com?repo=${{ parameters.appName }}&owner=${{ parameters.orgName }}'
         branch: main
-        targetPath: '${{ parameters.appName }}_template'
+        sourcePath: '${{ parameters.appName }}_template'
 
     - id: push-gl-repo
       if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'gitlab.com' }}
@@ -119,7 +99,7 @@ spec:
         branch: main
         targetPath: '${{ parameters.appName }}_template'
 
-# output:
-#  - name: Repository URL
-#    description: The URL of the newly created repository
-#    value: ${{ parameters.repoUrl }}
+  #output:
+  #  - name: Repository URL
+  #    description: The URL of the newly created repository
+  #    value: ${{ parameters.repoUrl }}
