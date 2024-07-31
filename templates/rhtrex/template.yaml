@@ -68,8 +68,6 @@ spec:
           appName: ${{ parameters.appName }}
           orgName: ${{ parameters.orgName }}
           repoLoc: ${{ parameters.repoUrl }}
-          token: ${{ parameters.token }}
-
     
     #EDIT APP FROM RHTREX, AND COMMIT
     - id: fetch-plain
