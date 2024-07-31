@@ -21,7 +21,6 @@ spec:
         ui:autofocus: true
         ui:options:
           rows: 5       
-  - title: Organiztion Name
     required:
     - orgName
     properties:
@@ -31,7 +30,10 @@ spec:
         description: Enter the name of the organization or user responsible for the new repository
         ui:autofocus: true
         ui:options:
-          rows: 5  
+    properties:
+        ui:autofocus: true
+        ui:options:
+          rows: 5
   - title: Choose a location
     required:
     - repoUrl
@@ -43,8 +45,7 @@ spec:
         ui:options:
           allowedHosts: #check on allowed hosts
             - github.com
-            - gitlabs.com      
-
+            - gitlabs.com
       
   # - title: Describe Your App
   #   required:
@@ -68,8 +69,52 @@ spec:
           appName: ${{ parameters.appName }}
           orgName: ${{ parameters.orgName }}
           repoLoc: ${{ parameters.repoUrl }}
-          token: ${{ parameters.token }}
 
+    #Fetch Token: Expiremental step where we fetch the token/credentials/whatever needed to 
+    #             create a token or give auth access for github/gitlabs repo creation and PR/MRs
+    - id: fetch-token
+      name: Fetch Token
+      action: fetch:template
+      input:
+        url: ./template
+        values: ${{parameters.orgName}}  
+
+    #Create Repository: Based on if conditions, create repository in correct organizational group
+    - id: create-gh-repo
+      if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'github.com' }}
+      name: Create Github Repo
+      action: github:repo:create
+      input:
+        repoUrl: ${{ parameters.repoUrl }} #this is the only req field
+        # description: #string
+        # access: #Sets an admin collaborator on the repository. Can either be a user reference different from 'owner' in 'repoUrl' or team reference, eg. 'org/team-name'
+        # requireCodeOwnerReviews: # Require an approved review in PR including files with a designated Code Owner; bool
+        token: # Authentication Token: the token to use for authorization to GitHub
+        # requiredCommitSigning: #bool
+    - id: check-gl-group #do we need this?
+      if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'gitlab.com' }}
+      name: Ensure Gitlabs Group exists
+      action: gitlab:group:ensureExists
+      input: 
+        repoUrl: ${{ parameters.repoUrl }}
+        # path: # A path of group names that is ensured to exist ??
+    - id: create-gl-repo
+      if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'gitlab.com' }}
+      name: Create Gitlabs Repo
+      action: publish:gitlab
+      input:
+        repoUrl: ${{ parameters.repoUrl }} #this is the only req field
+        token: # Authentication Token: the token to use for authorization to GitLab
+        # setUserAsOwner: #Set the token user as owner of the newly created repository. Requires a token authorized to do the edit in the integration configuration for the matching host
+        # settings:	# Additional project settings, based on https://docs.gitlab.com/ee/api/projects.html#create-project attributes
+        # projectVariables: # Project variables settings based on Gitlab Project Environments API - https://docs.gitlab.com/ee/api/project_level_variables.html#create-a-variable
+    - id: log-message
+      name: Log Message
+      action: debug:log
+      input:
+        message: 'RemoteURL: ${{ steps["create-gl-repo"].output.remoteUrl }}, ${{ steps["publish-repository"].output.repoContentsUrl }}!'
+
+    
     #EDIT APP FROM RHTREX, AND COMMIT
     - id: fetch-plain
       name: Fetch rhtrex Template
@@ -78,6 +123,78 @@ spec:
         url: 'https://github.com/openshift-online/rh-trex.git'
         targetPath: '${{ parameters.appName }}_template'
         branch: 'main'
+
+    - id: replace-app-gh
+      if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'github.com' }}
+      name: Replace app URL - Github
+      action: roadiehq:utils:fs:replace
+      input:
+        files:
+          - file: ${{ parameters.appName }}_template/**/*.*
+            find: 'https://github\.com/openshift-online/rh-trex'
+            replaceWith: ${{ steps["create-gh-repo"].output.remoteUrl }}
+
+    - id: replace-app-gl
+      if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'gitlab.com' }}
+      name: Replace app URL - GitLabs
+      action: roadiehq:utils:fs:replace
+      input:
+        files:
+          - file: ${{ parameters.appName }}_template/**/*.*
+            find: 'https://github\.com/openshift-online/rh-trex'
+            replaceWith: ${{ steps["create-gl-repo"].output.remoteUrl }}
+
+    - id: replace-rh-trex
+      name: Replace 'rh-trex' with appName
+      action: roadiehq:utils:fs:replace
+      input:
+        files:
+          - file: ${{ parameters.appName }}_template/**/*.*
+            find: 'rh-trex'
+            replaceWith: ${{ parameters.appName }}
+
+    - id: sanitize-name
+      name: Sanitize app name
+      action: regex:replace
+      input:
+        regExps:
+          - pattern: '[^a-zA-Z0-9_]'
+            replacement: ''
+            values:
+              - key: sanitizeAppName
+                value: ${{ parameters.appName }}
+
+    - id: replace-rhtrex
+      name: Replace occurrences of rhtrex
+      action: roadiehq:utils:fs:replace
+      input:
+        files:
+          - file: ${{ parameters.appName }}_template/**/*.*
+            find: 'rhtrex'
+            replaceWith: ${{ steps.sanitize-name.output.sanitizedValue }}
+
+    - id: replace-trex-service
+      name: Replace 'trex' with appName-service
+      action: roadiehq:utils:fs:replace
+      input:
+        files:
+          - file: ${{ parameters.appName }}_template/**/*.*
+            find: 'trex'
+            replaceWith: ${{ parameters.appName }}-service
+
+    - id: rename-all
+      name: Rename files and directories
+      action: fs:rename
+      input:
+        files:
+          - from: ${{ parameters.appName }}_template/rh-trex/.tekton/rh-trex-pull-request.yaml
+            to: ${{ parameters.appName }}_template/.tekton/${{ parameters.appName }}-pull-request.yaml
+          - from: ${{ parameters.appName }}_template/rh-trex/.tekton/rh-trex-push.yaml
+            to: ${{ parameters.appName }}_template/.tekton/${{ parameters.appName }}-push.yaml
+          - from: ${{ parameters.appName }}_template/rh-trex/cmd/trex
+            to: ${{ parameters.appName }}_template/rh-trex/cmd/${{ parameters.appName }}
+          - from: ${{ parameters.appName }}_template/rh-trex
+            to: ${{ parameters.appName }}_template/${{ parameters.appName }}
 
     - id: push-gh-repo
       if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'github.com' }}
@@ -99,7 +216,7 @@ spec:
         branch: main
         targetPath: '${{ parameters.appName }}_template'
 
-  #output:
-  #  - name: Repository URL
-  #    description: The URL of the newly created repository
-  #    value: ${{ parameters.repoUrl }}
+output:
+  - name: Repository URL
+    description: The URL of the newly created repository
+    value: ${{ steps.publish.output.remoteUrl }}
