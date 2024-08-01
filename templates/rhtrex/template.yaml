@@ -176,5 +176,5 @@ spec:
 
   output:
     - name: Repository URL
-    description: The URL of the newly created repository
-    value: ${{ steps.publish.output.remoteUrl }}
+      description: The URL of the newly created repository
+      value: ${{ steps.publish.output.remoteUrl }}
