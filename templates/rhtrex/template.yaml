@@ -21,6 +21,7 @@ spec:
         ui:autofocus: true
         ui:options:
           rows: 5       
+
   - title: Organization Name
     required:
     - orgName
@@ -31,7 +32,8 @@ spec:
         description: Enter the name of the organization or user responsible for the new repository
         ui:autofocus: true
         ui:options:
-          rows: 5  
+          rows: 5
+
   - title: Choose a location
     required:
     - repoUrl
@@ -45,7 +47,6 @@ spec:
             - github.com
             - gitlabs.com      
 
-      
   # - title: Describe Your App
   #   required:
   #   - description
@@ -68,6 +69,8 @@ spec:
           appName: ${{ parameters.appName }}
           orgName: ${{ parameters.orgName }}
           repoLoc: ${{ parameters.repoUrl }}
+          token: ${{ parameters.token }}
+
     
     #EDIT APP FROM RHTREX, AND COMMIT
     - id: fetch-plain
@@ -149,6 +152,7 @@ spec:
             to: ${{ parameters.appName }}_template/rh-trex/cmd/${{ parameters.appName }}
           - from: ${{ parameters.appName }}_template/rh-trex
             to: ${{ parameters.appName }}_template/${{ parameters.appName }}
+            overwrite: true
 
     - id: push-gh-repo
       if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'github.com' }}
@@ -170,7 +174,7 @@ spec:
         branch: main
         targetPath: '${{ parameters.appName }}_template'
 
-output:
+  output:
   - name: Repository URL
     description: The URL of the newly created repository
     value: ${{ steps.publish.output.remoteUrl }}
