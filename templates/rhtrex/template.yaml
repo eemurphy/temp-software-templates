@@ -90,6 +90,7 @@ spec:
           - file: ${{ parameters.appName }}_template/**/*.*
             find: 'https://github\.com/openshift-online/rh-trex'
             replaceWith: ${{ parameters.repoUrl }}
+            matchRegex: true
 
     - id: replace-app-gl
       if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'gitlab.com' }}
@@ -100,6 +101,7 @@ spec:
           - file: ${{ parameters.appName }}_template/**/*.*
             find: 'https://github\.com/openshift-online/rh-trex'
             replaceWith: ${{ parameters.repoUrl }}
+            matchRegex: true
 
     - id: replace-rh-trex
       name: Replace 'rh-trex' with appName
@@ -109,6 +111,7 @@ spec:
           - file: ${{ parameters.appName }}_template/**/*.*
             find: 'rh-trex'
             replaceWith: ${{ parameters.appName }}
+            matchRegex: true
 
     - id: sanitize-name
       name: Sanitize app name
