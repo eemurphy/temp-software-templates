@@ -87,7 +87,7 @@ spec:
       action: roadiehq:utils:fs:replace
       input:
         files:
-          - file: ${{ parameters.appName }}_template/**/*.*
+          - file: ${{ parameters.appName }}_template/*
             find: 'https://github\.com/openshift-online/rh-trex'
             replaceWith: ${{ parameters.repoUrl }}
             matchRegex: true
