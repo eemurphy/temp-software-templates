@@ -80,6 +80,12 @@ spec:
         url: 'https://github.com/openshift-online/rh-trex.git'
         targetPath: '${{ parameters.appName }}_template'
         branch: 'main'
+    
+    - id: log-message
+      name: Log Message
+      action: debug:log
+      input:
+        message: 'ERIN TEST 1 !!'
 
     - id: replace-app-gh
       if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'github.com' }}
@@ -91,6 +97,7 @@ spec:
             find: 'https://github\.com/openshift-online/rh-trex'
             replaceWith: ${{ parameters.repoUrl }}
             matchRegex: true
+            
 
     - id: replace-app-gl
       if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'gitlab.com' }}
@@ -132,6 +139,7 @@ spec:
           - file: ${{ parameters.appName }}_template/**/*.*
             find: 'rhtrex'
             replaceWith: ${{ steps.sanitize-name.output.sanitizedValue }}
+            matchRegex: true
 
     - id: replace-trex-service
       name: Replace 'trex' with appName-service
@@ -141,6 +149,7 @@ spec:
           - file: ${{ parameters.appName }}_template/**/*.*
             find: 'trex'
             replaceWith: ${{ parameters.appName }}-service
+            matchRegex: true
 
     - id: rename-all
       name: Rename files and directories
