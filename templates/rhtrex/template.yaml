@@ -3,7 +3,7 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: rh-trex-app
-  title: Create A New Application
+  title: Create A New Application - 1
   description: Create a New Application based on Red Hat's Example Application RH-Trex
 spec:
   owner: backstage/techdocs-core #change to what?
@@ -62,18 +62,24 @@ spec:
     
     #EDIT APP FROM RHTREX, AND COMMIT
     - id: fetch-plain
-      name: Fetch rhtrex Template
+      name: Fetch Bronto Template
       action: fetch:plain
       input:
         url: 'https://github.com/eemurphy/brontosaurus.git'
         targetPath: '${{ parameters.appName }}_template'
         branch: 'test123'
+
+    - action: debug:log
+      id: write-workspace-directory
+      name: List the workspace directory
+      input:
+        listWorkspace: true
     
     - id: parsefile
       name: Parse File
       action: roadiehq:utils:fs:parse
       input:
-        path: ${{ parameters.appName }}_template/parse-trex.yml
+        path: ${{ parameters.appName }}_template/trex_files.yaml
         parser: yaml
 
     - id: replace-app-gh
