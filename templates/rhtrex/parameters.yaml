@@ -1,0 +1,48 @@
+- title: Application Name
+  required:
+    - appName
+  properties:
+    appName:
+      title: Enter New Application Name
+      type: string
+      description: Enter the name you would like to be used for your application. Do not include any special characters (underscores and dashes are allowed)
+      ui:autofocus: true
+      ui:options:
+        rows: 5       
+
+- title: Organization Name
+  required:
+  - orgName
+  properties:
+    orgName:
+      title: Enter Organization or User's Name
+      type: string
+      description: Enter the name of the organization or user responsible for the new repository
+      ui:autofocus: true
+      ui:options:
+        rows: 5
+
+- title: Choose a location
+  required:
+  - repoUrl
+  properties:
+    repoUrl:
+      title: Repository Location
+      type: string
+      ui:field: RepoUrlPicker
+      ui:options:
+        allowedHosts: #check on allowed hosts
+          - github.com
+          - gitlabs.com      
+
+  # - title: Describe Your App
+  #   required:
+  #   - description
+  #   properties:
+  #     description:
+  #       title: Enter description
+  #       type: string
+  #       description: A one sentence summary of your application
+  #       ui:autofocus: true
+  #       ui:options:
+  #         rows: 5

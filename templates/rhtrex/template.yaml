@@ -8,57 +8,45 @@ metadata:
 spec:
   owner: backstage/techdocs-core #change to what?
   type: service
-
   parameters:
-  - title: Application Name
-    required:
-    - appName
-    properties:
-      appName:
-        title: Enter New Application Name
-        type: string
-        description: Enter the name you would like to be used for your application. Do not include any special characters (underscores and dashes are allowed)
-        ui:autofocus: true
-        ui:options:
-          rows: 5       
+    # - $yaml: https://github.com/eemurphy/temp-software-templates/blob/main/templates/rhtrex/parameters.yaml
+    - title: Application Name
+      required:
+      - appName
+      properties:
+        appName:
+          title: Enter New Application Name
+          type: string
+          description: Enter the name you would like to be used for your application. Do not include any special characters (underscores and dashes are allowed)
+          ui:autofocus: true
+          ui:options:
+            rows: 5       
 
-  - title: Organization Name
-    required:
-    - orgName
-    properties:
-      orgName:
-        title: Enter Organization or User's Name
-        type: string
-        description: Enter the name of the organization or user responsible for the new repository
-        ui:autofocus: true
-        ui:options:
-          rows: 5
+    - title: Organization Name
+      required:
+      - orgName
+      properties:
+        orgName:
+          title: Enter Organization or User's Name
+          type: string
+          description: Enter the name of the organization or user responsible for the new repository
+          ui:autofocus: true
+          ui:options:
+            rows: 5
 
-  - title: Choose a location
-    required:
-    - repoUrl
-    properties:
-      repoUrl:
-        title: Repository Location
-        type: string
-        ui:field: RepoUrlPicker
-        ui:options:
-          allowedHosts: #check on allowed hosts
-            - github.com
-            - gitlabs.com      
-
-  # - title: Describe Your App
-  #   required:
-  #   - description
-  #   properties:
-  #     description:
-  #       title: Enter description
-  #       type: string
-  #       description: A one sentence summary of your application
-  #       ui:autofocus: true
-  #       ui:options:
-  #         rows: 5
-
+    - title: Choose a location
+      required:
+      - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts: #check on allowed hosts
+              - github.com
+              - gitlabs.com     
+  
   steps:
     - id: fetch-base
       name: Fetch Base
@@ -68,7 +56,7 @@ spec:
         values:
           appName: ${{ parameters.appName }}
           orgName: ${{ parameters.orgName }}
-          repoLoc: ${{ parameters.repoUrl }}
+          repoUrl: ${{ parameters.repoUrl }}
           token: ${{ parameters.token }}
 
     
@@ -77,25 +65,27 @@ spec:
       name: Fetch rhtrex Template
       action: fetch:plain
       input:
-        url: 'https://github.com/openshift-online/rh-trex.git'
+        url: 'https://github.com/eemurphy/brontosaurus.git'
         targetPath: '${{ parameters.appName }}_template'
-        branch: 'main'
+        branch: 'test123'
     
-    - id: log-message
-      name: Log Message
-      action: debug:log
+    - id: parsefile
+      name: Parse File
+      action: roadiehq:utils:fs:parse
       input:
-        message: 'ERIN TEST 1 !!'
+        path: ${{ parameters.appName }}_template/parse-trex.yml
+        parser: yaml
 
     - id: replace-app-gh
       if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'github.com' }}
       name: Replace app URL - Github
       action: roadiehq:utils:fs:replace
+      each: ${{ steps.parsefile.output.content }}
       input:
         files:
-          - file: ${{ parameters.appName }}_template/*
+          - file: ${{ parameters.appName }}_template/${{ each.value }}
             find: 'https://github\.com/openshift-online/rh-trex'
-            replaceWith: ${{ parameters.repoUrl }}
+            replaceWith: ${{ parameters.repoUrl }} #fix ERIN
             matchRegex: true
             
 
@@ -185,6 +175,9 @@ spec:
         repoUrl: 'gitlab.com?repo=${{ parameters.appName }}&owner=${{ parameters.orgName }}'
         branch: main
         targetPath: '${{ parameters.appName }}_template'
+
+  output:
+    content: ${{ steps.parsefile.output.content }}
 
   # output:
   #   - name: Repository URL
