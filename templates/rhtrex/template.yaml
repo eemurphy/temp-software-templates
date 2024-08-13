@@ -17,7 +17,8 @@ spec:
         appName:
           title: Enter New Application Name
           type: string
-          description: Enter the name you would like to be used for your application. Do not include any special characters (underscores and dashes are allowed)
+          description: Enter the name you would like to be used inside your application's code to reference itself. We reccomend a shortened name or acronym if your app name is long. Case Sensitive - Do not include any special characters
+          pattern: '^[a-zA-Z0-9]+$'
           ui:autofocus: true
           ui:options:
             rows: 5       
@@ -67,7 +68,6 @@ spec:
       input:
         url: 'https://github.com/eemurphy/brontosaurus.git'
         targetPath: '${{ parameters.appName }}_template'
-        branch: 'test123'
 
     - action: debug:log
       id: write-workspace-directory
@@ -91,76 +91,40 @@ spec:
         files:
           - file: ${{ parameters.appName }}_template/${{ each.value }}
             find: 'https://github\.com/openshift-online/rh-trex'
-            replaceWith: ${{ parameters.repoUrl }} #fix ERIN
-            matchRegex: true
-            
-
-    - id: replace-app-gl
-      if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'gitlab.com' }}
-      name: Replace app URL - GitLabs
-      action: roadiehq:utils:fs:replace
-      input:
-        files:
-          - file: ${{ parameters.appName }}_template/**/*.*
-            find: 'https://github\.com/openshift-online/rh-trex'
-            replaceWith: ${{ parameters.repoUrl }}
-            matchRegex: true
+            replaceWith: 'https://${{ parameters.repoUrl.host }}/${{ parameters.repoUrl.owner }}/${{ parameters.repoUrl.repo }}' #fix ERIN
 
     - id: replace-rh-trex
       name: Replace 'rh-trex' with appName
       action: roadiehq:utils:fs:replace
+      each: ${{ steps.parsefile.output.content }}
       input:
         files:
-          - file: ${{ parameters.appName }}_template/**/*.*
+          - file: ${{ parameters.appName }}_template/${{ each.value }}
             find: 'rh-trex'
             replaceWith: ${{ parameters.appName }}
             matchRegex: true
 
-    - id: sanitize-name
-      name: Sanitize app name
-      action: regex:replace
-      input:
-        regExps:
-          - pattern: '[^a-zA-Z0-9_]'
-            replacement: ''
-            values:
-              - key: sanitizeAppName
-                value: ${{ parameters.appName }}
-
     - id: replace-rhtrex
       name: Replace occurrences of rhtrex
       action: roadiehq:utils:fs:replace
+      each: ${{ steps.parsefile.output.content }}
       input:
         files:
-          - file: ${{ parameters.appName }}_template/**/*.*
+          - file: ${{ parameters.appName }}_template/${{ each.value }}
             find: 'rhtrex'
-            replaceWith: ${{ steps.sanitize-name.output.sanitizedValue }}
+            replaceWith: ${{ parameters.appName }}
             matchRegex: true
 
     - id: replace-trex-service
       name: Replace 'trex' with appName-service
       action: roadiehq:utils:fs:replace
+      each: ${{ steps.parsefile.output.content }}
       input:
         files:
-          - file: ${{ parameters.appName }}_template/**/*.*
+          - file: ${{ parameters.appName }}_template/${{ each.value }}
             find: 'trex'
             replaceWith: ${{ parameters.appName }}-service
             matchRegex: true
-
-    - id: rename-all
-      name: Rename files and directories
-      action: fs:rename
-      input:
-        files:
-          - from: ${{ parameters.appName }}_template/rh-trex/.tekton/rh-trex-pull-request.yaml
-            to: ${{ parameters.appName }}_template/.tekton/${{ parameters.appName }}-pull-request.yaml
-          - from: ${{ parameters.appName }}_template/rh-trex/.tekton/rh-trex-push.yaml
-            to: ${{ parameters.appName }}_template/.tekton/${{ parameters.appName }}-push.yaml
-          - from: ${{ parameters.appName }}_template/rh-trex/cmd/trex
-            to: ${{ parameters.appName }}_template/rh-trex/cmd/${{ parameters.appName }}
-          - from: ${{ parameters.appName }}_template/rh-trex
-            to: ${{ parameters.appName }}_template/${{ parameters.appName }}
-            overwrite: true
 
     - id: push-gh-repo
       if: ${{ parameters.repoUrl | parseRepoUrl | pick('host') == 'github.com' }}
@@ -168,7 +132,7 @@ spec:
       action: publish:github
       input:
         allowedHosts: ${{ parameters.repoLoc.ui.options.allowedHosts }}
-        repoUrl: 'github.com?repo=${{ parameters.appName }}&owner=${{ parameters.orgName }}'
+        repoUrl: ${{ parameters.repoUrl }}
         branch: main
         sourcePath: '${{ parameters.appName }}_template'
 
@@ -178,7 +142,7 @@ spec:
       action: publish:gitlab
       input:
         allowedHosts: ${{ parameters.repoLoc.ui.options.allowedHosts }}
-        repoUrl: 'gitlab.com?repo=${{ parameters.appName }}&owner=${{ parameters.orgName }}'
+        repoUrl: ${{ parameters.repoUrl }}
         branch: main
         targetPath: '${{ parameters.appName }}_template'
 
